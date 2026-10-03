@@ -1,0 +1,158 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../lib/generated/prisma"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum OrderStatus {
+  DRAFT
+  SUBMITTED
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Product {
+  id              String   @id
+  family          String
+  category        String
+  image           String
+  material        String
+  construction    String
+  finish          String
+  /// Regular price in USD. Null means "price on request".
+  priceUsd           Decimal? @db.Decimal(10, 2)
+  /// Sale price in USD. Only a value strictly below `priceUsd` counts.
+  discountedPriceUsd Decimal? @db.Decimal(10, 2)
+  /// USD discount percentage; derived from the two prices when omitted.
+  discountPercentUsd Int?
+  /// Regular price in Turkish Lira. Null means "price on request".
+  priceTry           Decimal? @db.Decimal(10, 2)
+  /// Sale price in TRY. Only a value strictly below `priceTry` counts.
+  discountedPriceTry Decimal? @db.Decimal(10, 2)
+  /// TRY discount percentage; derived from the two prices when omitted.
+  discountPercentTry Int?
+  visible            Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  translations ProductTranslation[]
+  orderItems   OrderItem[]
+
+  @@index([visible])
+  @@index([family])
+  @@index([category])
+  @@map("products")
+}
+
+/// Per-language product text. Product content lives in the database, not in
+/// the UI dictionaries, so a product can exist in any subset of locales.
+model ProductTranslation {
+  id          String   @id @default(uuid())
+  productId   String
+  locale      String
+  name        String
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, locale])
+  @@index([productId])
+  @@map("product_translations")
+}
+
+/// Editable page content (e.g. the home "approach" section). Text is stored
+/// per language; fields like the image are shared across languages.
+model SiteSection {
+  id           String   @id @default(uuid())
+  key          String   @unique
+  image        String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  translations SiteSectionTranslation[]
+
+  @@map("site_sections")
+}
+
+model SiteSectionTranslation {
+  id          String   @id @default(uuid())
+  sectionId   String
+  locale      String
+  title       String
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  section SiteSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, locale])
+  @@index([sectionId])
+  @@map("site_section_translations")
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  token       String      @unique
+  email       String?
+  phone       String?
+  firstName   String?
+  lastName    String?
+  notes       String?
+  status      OrderStatus @default(DRAFT)
+  submittedAt DateTime?
+  /// Currency the customer checked out in. Order totals are shown in it.
+  currency    String      @default("TRY")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  items OrderItem[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  productId String?
+  quantity  Int      @default(1)
+  /// Price snapshot captured when the order was submitted. Stored so later
+  /// product price changes never alter an existing order's totals.
+  unitPriceUsd    Decimal? @db.Decimal(10, 2)
+  unitPriceTry    Decimal? @db.Decimal(10, 2)
+  regularPriceUsd Decimal? @db.Decimal(10, 2)
+  regularPriceTry Decimal? @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@unique([orderId, productId])
+  @@index([productId])
+  @@map("order_items")
+}
