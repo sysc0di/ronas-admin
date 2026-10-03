@@ -1,23 +1,45 @@
-import { PageHeader } from "@/components/admin/AdminShell";
-import { ApproachForm } from "@/components/admin/ApproachForm";
-import { APPROACH_SECTION_KEY, getSiteSectionForAdmin } from "@/lib/content";
+import { Pencil } from "lucide-react";
+import Link from "next/link";
 
-export const metadata = { title: "Home content · Admin" };
+import { PageHeader } from "@/components/admin/AdminShell";
+import { TableShell } from "@/components/admin/ui";
+import { listPagesForAdmin } from "@/lib/pages";
+
+export const metadata = { title: "Pages · Admin" };
 
 export default async function AdminContentPage() {
-  const section = await getSiteSectionForAdmin(APPROACH_SECTION_KEY);
+  const pages = await listPagesForAdmin();
+  const formatter = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 
   return (
     <>
       <PageHeader
-        title="Home content"
-        description="Edit the approach section shown on the home page."
+        title="Pages"
+        description="Edit the content of every storefront page. Sections are ordered and multilingual."
       />
 
-      <ApproachForm
-        initialImage={section?.image ?? ""}
-        initialTranslations={section?.translations ?? []}
-      />
+      <TableShell head={["Page", "Key", "Updated", ""]}>
+        {pages.map((page) => (
+          <tr key={page.key}>
+            <td className="cell-strong">{page.label}</td>
+            <td className="cell-muted mono">{page.key}</td>
+            <td className="cell-muted whitespace-nowrap">
+              {formatter.format(page.updatedAt)}
+            </td>
+            <td>
+              <div className="flex justify-end">
+                <Link
+                  href={`/admin/content/${page.key}`}
+                  className="btn btn-secondary btn-sm"
+                >
+                  <Pencil className="size-3.5" aria-hidden="true" />
+                  Edit
+                </Link>
+              </div>
+            </td>
+          </tr>
+        ))}
+      </TableShell>
     </>
   );
 }

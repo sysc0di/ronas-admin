@@ -144,11 +144,17 @@ export function Input({
 
 export function Textarea({
   label,
+  hint,
+  error,
   className,
   id,
   required,
   ...props
-}: { label?: string } & React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+}: {
+  label?: string;
+  hint?: string;
+  error?: string;
+} & React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const generatedId = useId();
   const textareaId = id ?? generatedId;
 
@@ -164,9 +170,14 @@ export function Textarea({
       <textarea
         id={textareaId}
         required={required}
-        className={cn("control", className)}
+        className={cn("control", error && "is-invalid", className)}
+        aria-invalid={error ? true : undefined}
         {...props}
       />
+
+      {hint && !error && <span className="field-hint">{hint}</span>}
+
+      {error && <span className="field-error">{error}</span>}
     </div>
   );
 }

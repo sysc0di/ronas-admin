@@ -83,34 +83,85 @@ model ProductTranslation {
   @@map("product_translations")
 }
 
-/// Editable page content (e.g. the home "approach" section). Text is stored
-/// per language; fields like the image are shared across languages.
-model SiteSection {
-  id           String   @id @default(uuid())
-  key          String   @unique
-  image        String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+/// A CMS-managed page (home, about, contact, impact, legal/*). Editorial text
+/// is stored per language; sections carry the ordered, reorderable blocks.
+model Page {
+  id        String   @id @default(uuid())
+  /// Stable identifier, e.g. "about" or "legal/privacy". Also the lookup key.
+  key       String   @unique
+  /// Human label shown in the admin panel.
+  label     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  translations SiteSectionTranslation[]
+  translations PageTranslation[]
+  sections     PageSection[]
 
-  @@map("site_sections")
+  @@map("pages")
 }
 
-model SiteSectionTranslation {
-  id          String   @id @default(uuid())
-  sectionId   String
-  locale      String
-  title       String
-  description String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+/// Per-language page-level text (SEO title/description, page subtitle).
+model PageTranslation {
+  id             String   @id @default(uuid())
+  pageId         String
+  locale         String
+  title          String   @default("")
+  subtitle       String   @default("")
+  seoTitle       String   @default("")
+  seoDescription String   @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  section SiteSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, locale])
+  @@index([pageId])
+  @@map("page_translations")
+}
+
+/// A reorderable content block. `type` selects the frontend renderer and the
+/// admin field set; `image`/`href` are shared across languages, everything
+/// textual lives in the translations.
+model PageSection {
+  id        String   @id @default(uuid())
+  pageId    String
+  /// Stable within a page, used as the React key and for upserts.
+  key       String
+  /// Renderer identifier, e.g. "about-hero", "rich-text".
+  type      String
+  position  Int      @default(0)
+  image     String   @default("")
+  href      String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  page         Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  translations PageSectionTranslation[]
+
+  @@unique([pageId, key])
+  @@index([pageId, position])
+  @@map("page_sections")
+}
+
+/// Per-language section text. `items` holds structured lists (values, steps,
+/// cards, contact rows) as JSON so new block shapes need no schema change.
+model PageSectionTranslation {
+  id        String   @id @default(uuid())
+  sectionId String
+  locale    String
+  eyebrow   String   @default("")
+  title     String   @default("")
+  body      String   @default("")
+  ctaLabel  String   @default("")
+  items     Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  section PageSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@unique([sectionId, locale])
   @@index([sectionId])
-  @@map("site_section_translations")
+  @@map("page_section_translations")
 }
 
 model Order {
@@ -125,6 +176,20 @@ model Order {
   submittedAt DateTime?
   /// Currency the customer checked out in. Order totals are shown in it.
   currency    String      @default("TRY")
+  /// Locale the customer checked out in (en | tr | ku | ar).
+  locale      String?
+  /// Whether the customer accepted the Distance Sales Agreement.
+  distanceSalesAccepted  Boolean   @default(false)
+  /// Whether the customer acknowledged the Pre-Information Form.
+  preInformationAccepted Boolean   @default(false)
+  /// When the mandatory order agreement was accepted.
+  agreementAcceptedAt    DateTime?
+  /// Version of the legal documents in force when the agreement was accepted.
+  legalVersion           String?
+  /// Optional marketing consent, stored separately from the order agreement.
+  marketingConsent   Boolean   @default(false)
+  /// When marketing consent was given; null when it was declined.
+  marketingConsentAt DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 

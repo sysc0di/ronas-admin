@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Home,
+  FileText,
   KeyRound,
   LayoutDashboard,
   LogOut,
@@ -16,7 +16,7 @@ import { cn } from "cn";
 
 const NAV = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/content", label: "Home", icon: Home },
+  { href: "/admin/content", label: "Pages", icon: FileText },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/lists", label: "Lists", icon: ScrollText },
   { href: "/admin/settings", label: "Password", icon: KeyRound },
