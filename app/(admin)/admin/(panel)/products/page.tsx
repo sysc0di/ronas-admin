@@ -3,6 +3,7 @@ import { ProductsTable } from "@/components/admin/ProductsTable";
 import type { Locale } from "@/lib/i18n";
 import { decimalToNumber } from "@/lib/price";
 import { prisma } from "@/lib/prisma";
+import { parseTechnicalDetails } from "@/lib/product-specs";
 import { productSelect } from "@/lib/products";
 
 export const metadata = { title: "Products · Admin" };
@@ -35,6 +36,9 @@ export default async function AdminProductsPage() {
           translations: product.translations.map((translation) => ({
             ...translation,
             locale: translation.locale as Locale,
+            technicalDetails: parseTechnicalDetails(
+              translation.technicalDetails,
+            ),
           })),
         }))}
       />

@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  ArrowDown,
+  ArrowUp,
   Eye,
   EyeOff,
   Pencil,
@@ -54,11 +56,17 @@ import {
   type Currency,
   type Money,
 } from "@/lib/price";
+import {
+  MAX_TECHNICAL_DETAILS,
+  MAX_TECHNICAL_DETAIL_LENGTH,
+  type ProductSpec,
+} from "@/lib/product-specs";
 
 type ProductTranslation = {
   locale: Locale;
   name: string;
   description: string;
+  technicalDetails: ProductSpec[] | null;
 };
 
 type Product = {
@@ -79,7 +87,11 @@ type Product = {
   translations: ProductTranslation[];
 };
 
-type DraftTranslation = { name: string; description: string };
+type DraftTranslation = {
+  name: string;
+  description: string;
+  technicalDetails: ProductSpec[];
+};
 
 type DraftMoney = {
   price: string;
@@ -104,9 +116,17 @@ type Draft = {
 const DEFAULT_FAMILY = CATEGORIES[0].slug;
 
 function emptyTranslations(): Record<Locale, DraftTranslation> {
-  return Object.fromEntries(
-    locales.map((locale) => [locale, { name: "", description: "" }]),
-  ) as Record<Locale, DraftTranslation>;
+  const entries = {} as Record<Locale, DraftTranslation>;
+
+  for (const locale of locales) {
+    entries[locale] = {
+      name: "",
+      description: "",
+      technicalDetails: [],
+    };
+  }
+
+  return entries;
 }
 
 function moneyToDraft(
@@ -210,6 +230,7 @@ function draftFromProduct(product: Product): Draft {
     translations[translation.locale] = {
       name: translation.name,
       description: translation.description,
+      technicalDetails: translation.technicalDetails ?? [],
     };
   }
 
@@ -521,6 +542,65 @@ export function ProductsTable({
       missing.push("Name and description for every language you filled in");
     }
 
+    /* Technical details ride along with the language they belong to, so rows
+       typed for a language that is not being saved would be dropped. */
+    const specsByLocale = new Map(
+      filled.map((entry) => [
+        entry.locale,
+        entry.technicalDetails
+          .map((row) => ({
+            label: row.label.trim(),
+            value: row.value.trim(),
+          }))
+          /* A row the admin opened but never typed into is not a spec. */
+          .filter((row) => row.label || row.value),
+      ]),
+    );
+
+    const savedLocales = new Set(filled.map((entry) => entry.locale));
+
+    const orphaned = locales.filter(
+      (locale) =>
+        !savedLocales.has(locale) &&
+        draft.translations[locale].technicalDetails.some(
+          (row) => row.label.trim() || row.value.trim(),
+        ),
+    );
+
+    if (orphaned.length > 0) {
+      missing.push(
+        `Technical details for ${orphaned
+          .map((locale) => localeNames[locale])
+          .join(", ")} need a name and description in that language`,
+      );
+    }
+
+    for (const [locale, rows] of specsByLocale) {
+      if (rows.length > MAX_TECHNICAL_DETAILS) {
+        missing.push(
+          `${localeLabels[locale]}: at most ${MAX_TECHNICAL_DETAILS} technical details`,
+        );
+      }
+
+      if (rows.some((row) => !row.label || !row.value)) {
+        missing.push(
+          `${localeLabels[locale]}: every technical detail needs a label and a value`,
+        );
+      }
+
+      if (
+        rows.some(
+          (row) =>
+            row.label.length > MAX_TECHNICAL_DETAIL_LENGTH ||
+            row.value.length > MAX_TECHNICAL_DETAIL_LENGTH,
+        )
+      ) {
+        missing.push(
+          `${localeLabels[locale]}: technical detail labels and values must be at most ${MAX_TECHNICAL_DETAIL_LENGTH} characters`,
+        );
+      }
+    }
+
     /* Prices are optional, but anything typed must be a valid amount and a
        discount has to be lower than the regular price. */
     const usd = parseDraftMoney(draft.pricing.USD, "USD");
@@ -553,6 +633,7 @@ export function ProductsTable({
         locale: entry.locale,
         name: entry.name.trim(),
         description: entry.description.trim(),
+        technicalDetails: specsByLocale.get(entry.locale) ?? [],
       })),
     };
 
@@ -969,6 +1050,18 @@ export function ProductsTable({
                 })
               }
             />
+
+            <TechnicalDetailsEditor
+              specs={
+                draft.translations[draft.language]
+                  .technicalDetails
+              }
+              onChange={(technicalDetails) =>
+                updateTranslation(draft.language, {
+                  technicalDetails,
+                })
+              }
+            />
           </div>
 
           <ImageInput
@@ -1139,6 +1232,134 @@ export function ProductsTable({
           will be shown as &quot;Product removed&quot;.
         </p>
       </Modal>
+    </div>
+  );
+}
+
+/**
+ * Repeatable "label: value" rows for one language. The order is the order the
+ * storefront prints, so the rows can be moved up and down.
+ */
+function TechnicalDetailsEditor({
+  specs,
+  onChange,
+}: {
+  specs: ProductSpec[];
+  onChange: (specs: ProductSpec[]) => void;
+}) {
+  function update(index: number, patch: Partial<ProductSpec>) {
+    onChange(
+      specs.map((row, position) =>
+        position === index ? { ...row, ...patch } : row,
+      ),
+    );
+  }
+
+  function move(index: number, offset: number) {
+    const rows = [...specs];
+    const target = index + offset;
+
+    if (target < 0 || target >= rows.length) return;
+
+    const [row] = rows.splice(index, 1);
+
+    rows.splice(target, 0, row);
+
+    onChange(rows);
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="field-label">Technical details</p>
+
+      {specs.length === 0 && (
+        <p className="field-hint">
+          Shown as a spec list under the product on its detail page. Labels are
+          per language, so fill them in for every language you translate.
+        </p>
+      )}
+
+      {specs.map((spec, index) => (
+        <div
+          key={index}
+          className="grid gap-3 rounded-md border border-line bg-panel p-3 sm:grid-cols-2"
+        >
+          <Input
+            label="Label"
+            value={spec.label}
+            maxLength={MAX_TECHNICAL_DETAIL_LENGTH}
+            placeholder="Flow rate"
+            onChange={(event) =>
+              update(index, { label: event.target.value })
+            }
+          />
+
+          <Input
+            label="Value"
+            value={spec.value}
+            maxLength={MAX_TECHNICAL_DETAIL_LENGTH}
+            placeholder="520 cfm @ 3.0 inHg"
+            onChange={(event) =>
+              update(index, { value: event.target.value })
+            }
+          />
+
+          <div className="flex items-center gap-1 sm:col-span-2">
+            <IconButton
+              label="Move technical detail up"
+              disabled={index === 0}
+              onClick={() => move(index, -1)}
+            >
+              <ArrowUp className="size-4" aria-hidden="true" />
+            </IconButton>
+
+            <IconButton
+              label="Move technical detail down"
+              disabled={index === specs.length - 1}
+              onClick={() => move(index, 1)}
+            >
+              <ArrowDown className="size-4" aria-hidden="true" />
+            </IconButton>
+
+            <IconButton
+              label="Remove technical detail"
+              onClick={() =>
+                onChange(
+                  specs.filter((_, position) => position !== index),
+                )
+              }
+            >
+              <Trash2
+                className="size-4 text-danger"
+                aria-hidden="true"
+              />
+            </IconButton>
+
+            <span className="cell-muted ml-auto text-xs">
+              {index + 1} / {specs.length}
+            </span>
+          </div>
+        </div>
+      ))}
+
+      <Button
+        type="button"
+        size="sm"
+        disabled={specs.length >= MAX_TECHNICAL_DETAILS}
+        onClick={() =>
+          onChange([...specs, { label: "", value: "" }])
+        }
+      >
+        <Plus className="size-3.5" aria-hidden="true" />
+        Add technical detail
+      </Button>
+
+      {specs.length >= MAX_TECHNICAL_DETAILS && (
+        <p className="field-hint">
+          A product can hold at most {MAX_TECHNICAL_DETAILS} technical
+          details.
+        </p>
+      )}
     </div>
   );
 }

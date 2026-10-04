@@ -7,6 +7,8 @@ import {
 } from "@/lib/products";
 import { prisma } from "@/lib/prisma";
 
+import type { Prisma } from "@/lib/generated/prisma/client";
+
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
@@ -87,6 +89,13 @@ export async function POST(request: Request) {
           locale: translation.locale,
           name: translation.name,
           description: translation.description,
+          /* An empty list means no technical details, which stays NULL. */
+          ...(translation.technicalDetails?.length
+            ? {
+                technicalDetails:
+                  translation.technicalDetails as unknown as Prisma.InputJsonValue,
+              }
+            : {}),
         })),
       },
     },

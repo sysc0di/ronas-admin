@@ -6,7 +6,7 @@ import {
 } from "@/lib/products";
 import { prisma } from "@/lib/prisma";
 
-import type { Prisma } from "@/lib/generated/prisma/client";
+import { Prisma } from "@/lib/generated/prisma/client";
 
 export const runtime = "nodejs";
 
@@ -89,20 +89,34 @@ export async function PATCH(
   if (translations) {
     /* Merge: locales the admin filled are upserted, the rest are kept. */
     update.translations = {
-      upsert: translations.map((translation) => ({
-        where: {
-          productId_locale: { productId: id, locale: translation.locale },
-        },
-        update: {
+      upsert: translations.map((translation) => {
+        const text = {
           name: translation.name,
           description: translation.description,
-        },
-        create: {
-          locale: translation.locale,
-          name: translation.name,
-          description: translation.description,
-        },
-      })),
+        };
+
+        /* An omitted list keeps the stored rows; an empty one clears them. */
+        const details =
+          translation.technicalDetails === undefined
+            ? {}
+            : {
+                technicalDetails: translation.technicalDetails.length
+                  ? (translation.technicalDetails as unknown as Prisma.InputJsonValue)
+                  : Prisma.DbNull,
+              };
+
+        return {
+          where: {
+            productId_locale: { productId: id, locale: translation.locale },
+          },
+          update: { ...text, ...details },
+          create: {
+            locale: translation.locale,
+            ...text,
+            ...details,
+          },
+        };
+      }),
     };
   }
 

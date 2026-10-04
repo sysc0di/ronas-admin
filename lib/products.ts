@@ -1,6 +1,11 @@
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { locales, type Locale } from "@/lib/i18n";
 import type { Money } from "@/lib/price";
+import {
+  MAX_TECHNICAL_DETAILS,
+  MAX_TECHNICAL_DETAIL_LENGTH,
+  type ProductSpec,
+} from "@/lib/product-specs";
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -35,6 +40,8 @@ export type ProductTranslationPayload = {
   locale: Locale;
   name: string;
   description: string;
+  /** Absent means "leave the stored rows alone"; `[]` clears them. */
+  technicalDetails?: ProductSpec[];
 };
 
 export type ProductPayload = {
@@ -53,6 +60,7 @@ export const translationSelect = {
   locale: true,
   name: true,
   description: true,
+  technicalDetails: true,
 } as const;
 
 export const productSelect = {
@@ -109,6 +117,78 @@ function readText(
 type TranslationsResult =
   | { ok: true; value: ProductTranslationPayload[] | undefined }
   | { ok: false; error: string };
+
+type SpecsResult =
+  | { ok: true; value: ProductSpec[] | undefined }
+  | { ok: false; error: string };
+
+/**
+ * Technical details are a stored JSON array, so the payload is checked here
+ * rather than by Prisma: every row must be a `{ label, value }` pair of
+ * non-empty strings inside the documented limits.
+ */
+function readTechnicalDetails(entry: Record<string, unknown>): SpecsResult {
+  const value = entry.technicalDetails;
+
+  /* Omitted means the caller is not touching the stored rows. */
+  if (value === undefined || value === null) {
+    return { ok: true, value: undefined };
+  }
+
+  if (!Array.isArray(value)) {
+    return {
+      ok: false,
+      error: '"technicalDetails" must be an array of { label, value } rows.',
+    };
+  }
+
+  if (value.length > MAX_TECHNICAL_DETAILS) {
+    return {
+      ok: false,
+      error: `"technicalDetails" must contain at most ${MAX_TECHNICAL_DETAILS} rows.`,
+    };
+  }
+
+  const specs: ProductSpec[] = [];
+
+  for (const row of value) {
+    if (!isPlainObject(row)) {
+      return {
+        ok: false,
+        error:
+          'Each technical detail row must be a JSON object with "label" and "value".',
+      };
+    }
+
+    const label = readText(row, "label", true);
+    const specValue = readText(row, "value", true);
+
+    if (!label.ok) {
+      return { ok: false, error: `technicalDetails: ${label.error}` };
+    }
+
+    if (!specValue.ok) {
+      return { ok: false, error: `technicalDetails: ${specValue.error}` };
+    }
+
+    const labelText = label.value as string;
+    const valueText = specValue.value as string;
+
+    if (
+      labelText.length > MAX_TECHNICAL_DETAIL_LENGTH ||
+      valueText.length > MAX_TECHNICAL_DETAIL_LENGTH
+    ) {
+      return {
+        ok: false,
+        error: `"technicalDetails" labels and values must be at most ${MAX_TECHNICAL_DETAIL_LENGTH} characters.`,
+      };
+    }
+
+    specs.push({ label: labelText, value: valueText });
+  }
+
+  return { ok: true, value: specs };
+}
 
 function readTranslations(value: unknown, required: boolean): TranslationsResult {
   if (value === undefined || value === null) {
@@ -174,10 +254,20 @@ function readTranslations(value: unknown, required: boolean): TranslationsResult
       };
     }
 
+    const specs = readTechnicalDetails(entry);
+
+    if (!specs.ok) {
+      return {
+        ok: false,
+        error: `${locale}: ${specs.error}`,
+      };
+    }
+
     translations.push({
       locale: locale as Locale,
       name: localeName.value as string,
       description: localeDescription.value as string,
+      technicalDetails: specs.value,
     });
   }
 
