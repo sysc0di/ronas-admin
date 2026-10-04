@@ -91,7 +91,9 @@ export async function PUT(
     revalidatePath(`/${locale}/legal`);
   }
 
-  await revalidateStorefront();
+  /* This app's own pages are read client side, but the storefront is prerendered,
+     so it needs the ping for the change to appear on the site. */
+  const revalidated = await revalidateStorefront();
 
-  return Response.json({ page });
+  return Response.json({ page, revalidated });
 }

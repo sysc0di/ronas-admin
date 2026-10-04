@@ -393,6 +393,26 @@ export function ProductsTable({
     setNotice("");
   }
 
+  /** The write succeeds either way; a failed purge only means the site is still
+      serving its cached copy, so never report the change as live in that case. */
+  function reportSaved(
+    message: string,
+    revalidated?: { ok?: boolean; reason?: string },
+  ) {
+    if (revalidated && revalidated.ok === false) {
+      setNotice("");
+      setError(
+        `${message} However the site was not refreshed (${
+          revalidated.reason ?? "unknown error"
+        }) — visitors may still see the old version.`,
+      );
+
+      return;
+    }
+
+    flash(message);
+  }
+
   function updateTranslation(
     locale: Locale,
     patch: Partial<DraftTranslation>,
@@ -656,7 +676,10 @@ export function ProductsTable({
       );
 
       setModal(null);
-      flash(editing ? "Product updated." : "Product created.");
+      reportSaved(
+        editing ? "Product updated." : "Product created.",
+        payload.revalidated,
+      );
     } catch (err) {
       setDraftErrors([
         err instanceof Error ? err.message : "Request failed.",
@@ -700,13 +723,13 @@ export function ProductsTable({
     setNotice("");
 
     try {
-      await request(`/api/products/${encodeURIComponent(id)}`, {
+      const result = await request(`/api/products/${encodeURIComponent(id)}`, {
         method: "DELETE",
       });
 
       setProducts((current) => current.filter((item) => item.id !== id));
       setRemoving(null);
-      flash("Product deleted.");
+      reportSaved("Product deleted.", result.revalidated);
     } catch (err) {
       fail(err instanceof Error ? err.message : "Request failed.");
     } finally {

@@ -308,7 +308,21 @@ export function PageEditor({ page }: { page: AdminPage }) {
         return;
       }
 
-      setNotice("Page saved.");
+      const refreshed = payload.revalidated as
+        | { ok?: boolean; reason?: string }
+        | undefined;
+
+      /* The write succeeded either way; a failed purge only means the site is
+         still serving its cached copy, so say so instead of claiming it is live. */
+      if (refreshed && refreshed.ok === false) {
+        setNotice("");
+        setErrors([
+          `Page saved, but the site was not refreshed (${refreshed.reason ?? "unknown error"}) — visitors may still see the old version.`,
+        ]);
+      } else {
+        setNotice("Page saved.");
+      }
+
       router.refresh();
     } catch {
       setErrors(["Something went wrong. Please try again."]);

@@ -5,7 +5,7 @@ import {
   productSelect,
 } from "@/lib/products";
 import { prisma } from "@/lib/prisma";
-import { productPaths, revalidateStorefront } from "@/lib/revalidate";
+import { revalidateStorefront } from "@/lib/revalidate";
 
 import { Prisma } from "@/lib/generated/prisma/client";
 
@@ -127,10 +127,11 @@ export async function PATCH(
     select: productSelect,
   });
 
-  /* A rename moves the storefront page, so both ids need purging. */
-  await revalidateStorefront(productPaths(id, nextId));
+  /* A rename moves the storefront page, but the storefront purges by route
+     pattern, so old and new ids need no special handling. */
+  const revalidated = await revalidateStorefront();
 
-  return Response.json({ product });
+  return Response.json({ product, revalidated });
 }
 
 export async function DELETE(
@@ -153,7 +154,7 @@ export async function DELETE(
   await prisma.product.delete({ where: { id } });
 
   /* The deleted product leaves the store index and the sitemap. */
-  await revalidateStorefront(productPaths(id));
+  const revalidated = await revalidateStorefront();
 
-  return new Response(null, { status: 204 });
+  return Response.json({ revalidated }, { status: 200 });
 }
