@@ -6,6 +6,7 @@ import {
   productSelect,
 } from "@/lib/products";
 import { prisma } from "@/lib/prisma";
+import { productPaths, revalidateStorefront } from "@/lib/revalidate";
 
 import type { Prisma } from "@/lib/generated/prisma/client";
 
@@ -101,6 +102,9 @@ export async function POST(request: Request) {
     },
     select: productSelect,
   });
+
+  /* The storefront is a separate app, so tell it to drop its cached copies. */
+  await revalidateStorefront(productPaths(id));
 
   return Response.json({ product }, { status: 201 });
 }
