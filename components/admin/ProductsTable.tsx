@@ -25,7 +25,6 @@ import {
   PanelHeader,
   Select,
   Switch,
-  TableSkeleton,
   TableShell,
   Textarea,
 } from "@/components/admin/ui";
@@ -338,6 +337,12 @@ export function ProductsTable({
   /* Stable identity: the modal's effect depends on it, so an inline arrow would
      re-run that effect on every keystroke and yank focus back to the trigger. */
   const closeModal = useCallback(() => setModal(null), []);
+
+  function startCreate() {
+    setDraft(emptyDraft());
+    setDraftErrors([]);
+    setModal("create");
+  }
 
   /* The draft's family, falling back when a product predates the taxonomy. */
   const draftFamily: CategorySlug = isCategorySlug(draft.family)
@@ -755,14 +760,7 @@ export function ProductsTable({
           title="Products"
           description={`${products.length} total · ${products.length - hiddenCount} visible · ${hiddenCount} hidden`}
           actions={
-            <Button
-              variant="primary"
-              onClick={() => {
-                setDraft(emptyDraft());
-                setDraftErrors([]);
-                setModal("create");
-              }}
-            >
+            <Button variant="primary" onClick={startCreate}>
               <Plus className="size-4" />
               New product
             </Button>
@@ -815,7 +813,16 @@ export function ProductsTable({
         )}
 
         {products.length === 0 ? (
-          <TableSkeleton />
+          <EmptyState
+            title="No products yet"
+            description="Add your first product to show it in the storefront catalog."
+            action={
+              <Button variant="primary" onClick={startCreate}>
+                <Plus className="size-4" />
+                New product
+              </Button>
+            }
+          />
         ) : visible.length === 0 ? (
           <EmptyState
             title="No products match"
