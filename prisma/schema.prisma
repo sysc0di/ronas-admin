@@ -37,9 +37,12 @@ model Product {
   family             String
   category           String
   image              String
-  material           String
-  construction       String
-  finish             String
+  /// Legacy attributes, superseded by `ProductTranslation.technicalDetails`.
+  /// Kept nullable (and unused) so existing values are not destroyed; new
+  /// products leave them empty.
+  material           String?
+  construction       String?
+  finish             String?
   /// Regular price in USD. Null means "price on request".
   priceUsd           Decimal? @db.Decimal(10, 2)
   /// Sale price in USD. Only a value strictly below `priceUsd` counts.

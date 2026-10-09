@@ -74,9 +74,6 @@ type Product = {
   family: string;
   category: string;
   image: string | null;
-  material: string | null;
-  construction: string | null;
-  finish: string | null;
   priceUsd: number | null;
   discountedPriceUsd: number | null;
   discountPercentUsd: number | null;
@@ -104,9 +101,6 @@ type Draft = {
   family: string;
   category: string;
   image: string;
-  material: string;
-  construction: string;
-  finish: string;
   pricing: Record<Currency, DraftMoney>;
   visible: boolean;
   language: Locale;
@@ -210,9 +204,6 @@ function emptyDraft(): Draft {
     family: DEFAULT_FAMILY,
     category: SUBCATEGORIES[DEFAULT_FAMILY][0].slug,
     image: "",
-    material: "",
-    construction: "",
-    finish: "",
     pricing: {
       USD: { price: "", discountedPrice: "", discountPercent: "" },
       TRY: { price: "", discountedPrice: "", discountPercent: "" },
@@ -246,9 +237,6 @@ function draftFromProduct(product: Product): Draft {
       familyOf(product.category) ?? product.family ?? DEFAULT_FAMILY,
     category: product.category,
     image: product.image ?? "",
-    material: product.material ?? "",
-    construction: product.construction ?? "",
-    finish: product.finish ?? "",
     pricing: {
       USD: moneyToDraft(
         product.priceUsd,
@@ -529,9 +517,6 @@ export function ProductsTable({
     ["family", "Category"],
     ["category", "Subcategory"],
     ["image", "Image URL"],
-    ["material", "Material"],
-    ["construction", "Construction"],
-    ["finish", "Finish"],
   ] as const;
 
   async function save() {
@@ -542,7 +527,7 @@ export function ProductsTable({
     ).map(([, label]) => label);
 
     if (modal === "create" && !draft.id.trim()) {
-      missing.push("Slug");
+      missing.push("Stock code");
     }
 
     /* Product text lives per language; anything typed must be complete. */
@@ -639,9 +624,6 @@ export function ProductsTable({
       family: draft.family,
       category: draft.category,
       image: draft.image,
-      material: draft.material,
-      construction: draft.construction,
-      finish: draft.finish,
       priceUsd: usd.price,
       discountedPriceUsd: usd.discountedPrice,
       discountPercentUsd: usd.discountPercent,
@@ -798,7 +780,7 @@ export function ProductsTable({
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search name, slug, family…"
+              placeholder="Search name, stock code, family…"
               aria-label="Search products"
               className="control pl-9"
             />
@@ -980,14 +962,18 @@ export function ProductsTable({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              label="Slug"
+              label="Stock code"
               value={draft.id}
               disabled={modal === "edit"}
               onChange={(event) =>
                 setDraft({ ...draft, id: event.target.value })
               }
-              placeholder="intake-manifold"
-              hint={modal === "edit" ? "Slug cannot change." : undefined}
+              placeholder="AIR-007"
+              hint={
+                modal === "edit"
+                  ? "Stock code cannot change."
+                  : undefined
+              }
             />
 
             <Select
@@ -1093,35 +1079,6 @@ export function ProductsTable({
             onChange={(url) => setDraft({ ...draft, image: url })}
             folder="products"
           />
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Input
-              label="Material"
-              required
-              value={draft.material}
-              onChange={(event) =>
-                setDraft({ ...draft, material: event.target.value })
-              }
-            />
-
-            <Input
-              label="Construction"
-              required
-              value={draft.construction}
-              onChange={(event) =>
-                setDraft({ ...draft, construction: event.target.value })
-              }
-            />
-
-            <Input
-              label="Finish"
-              required
-              value={draft.finish}
-              onChange={(event) =>
-                setDraft({ ...draft, finish: event.target.value })
-              }
-            />
-          </div>
 
           <div className="space-y-4 rounded-lg border border-line bg-sunken p-4">
             {CURRENCIES.map((currency) => {

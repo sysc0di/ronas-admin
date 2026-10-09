@@ -10,9 +10,6 @@ export type CatalogProduct = {
   category: string;
   description: string;
   image: string;
-  material: string;
-  construction: string;
-  finish: string;
   priceUsd: number | null;
   discountedPriceUsd: number | null;
   discountPercentUsd: number | null;

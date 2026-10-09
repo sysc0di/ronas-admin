@@ -7,31 +7,24 @@ import {
   type ProductSpec,
 } from "@/lib/product-specs";
 
-const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+/* A stock code is the product identifier and URL key: letters (any case),
+   digits, dots, underscores and dashes, starting with a letter or digit. */
+const STOCK_CODE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 export const productFields = [
   "family",
   "category",
   "image",
-  "material",
-  "construction",
-  "finish",
 ] as const;
 
 export const productFilters = [
   "family",
   "category",
-  "material",
-  "construction",
-  "finish",
 ] as const;
 
 export const productOrderByFields = [
   "family",
   "category",
-  "material",
-  "construction",
-  "finish",
   "createdAt",
   "updatedAt",
 ] as const;
@@ -68,9 +61,6 @@ export const productSelect = {
   family: true,
   category: true,
   image: true,
-  material: true,
-  construction: true,
-  finish: true,
   priceUsd: true,
   discountedPriceUsd: true,
   discountPercentUsd: true,
@@ -374,9 +364,9 @@ export function parseProductPayload(
 
     if (!id.ok) {
       errors.push(id.error);
-    } else if (id.value !== undefined && !SLUG_PATTERN.test(id.value)) {
+    } else if (id.value !== undefined && !STOCK_CODE_PATTERN.test(id.value)) {
       errors.push(
-        `"id" must be a slug (lowercase letters, digits and dashes).`,
+        `"id" must be a stock code (letters, digits, dots, underscores and dashes).`,
       );
     } else if (id.value !== undefined) {
       data.id = id.value;
