@@ -57,8 +57,6 @@ type SectionState = {
 type PageTranslationState = {
   title: string;
   subtitle: string;
-  seoTitle: string;
-  seoDescription: string;
 };
 
 const TYPE_GROUPS = SECTION_TYPES.reduce<Record<string, SectionTypeDef[]>>(
@@ -81,10 +79,7 @@ function emptySectionTranslations(): Record<Locale, SectionTranslationState> {
 
 function emptyPageTranslations(): Record<Locale, PageTranslationState> {
   return Object.fromEntries(
-    locales.map((locale) => [
-      locale,
-      { title: "", subtitle: "", seoTitle: "", seoDescription: "" },
-    ]),
+    locales.map((locale) => [locale, { title: "", subtitle: "" }]),
   ) as Record<Locale, PageTranslationState>;
 }
 
@@ -119,8 +114,6 @@ export function PageEditor({ page }: { page: AdminPage }) {
       base[entry.locale] = {
         title: entry.title,
         subtitle: entry.subtitle,
-        seoTitle: entry.seoTitle,
-        seoDescription: entry.seoDescription,
       };
     }
 
@@ -340,7 +333,7 @@ export function PageEditor({ page }: { page: AdminPage }) {
       <Panel>
         <PanelHeader
           title="Page details"
-          description={`Key: ${page.key}. The label is shown in the admin and the SEO fields feed the storefront metadata.`}
+          description={`Key: ${page.key}. The label is shown in the admin. Storefront metadata is set in code.`}
           actions={
             <Button type="submit" variant="primary" loading={pending}>
               <Save className="size-3.5" aria-hidden="true" />
@@ -384,26 +377,6 @@ export function PageEditor({ page }: { page: AdminPage }) {
               onChange={(event) =>
                 updatePageTranslation(language, {
                   subtitle: event.target.value,
-                })
-              }
-            />
-
-            <Input
-              label={`SEO title (${localeLabels[language]})`}
-              value={pageTranslations[language].seoTitle}
-              onChange={(event) =>
-                updatePageTranslation(language, {
-                  seoTitle: event.target.value,
-                })
-              }
-            />
-
-            <Input
-              label={`SEO description (${localeLabels[language]})`}
-              value={pageTranslations[language].seoDescription}
-              onChange={(event) =>
-                updatePageTranslation(language, {
-                  seoDescription: event.target.value,
                 })
               }
             />

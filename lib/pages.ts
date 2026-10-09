@@ -1,6 +1,5 @@
-import { defaultLocale, hasLocale, locales, type Locale } from "@/lib/i18n";
+import { hasLocale, locales, type Locale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
-import { pickTranslation } from "@/lib/product-text";
 
 import type { SectionItem } from "@/lib/section-types";
 
@@ -16,38 +15,14 @@ export type {
 } from "@/lib/section-types";
 
 /**
- * Generic CMS content layer.
+ * Admin CMS content layer.
  *
  * A `Page` is a named collection of ordered `PageSection`s. Section text is
- * stored per locale; `image`/`href` are shared. The frontend renders sections
- * through a type→component registry, and the admin panel renders the matching
- * field set — so a new page or block is data, not bespoke code.
+ * stored per locale; `image`/`href` are shared. The admin panel renders the
+ * matching field set, so a new page or block is data, not bespoke code.
+ * Storefront metadata is code-owned and intentionally edited outside the
+ * panel, so it is not read or written here.
  */
-
-/** A section resolved for one locale, ready to render. */
-export type ResolvedSection = {
-  id: string;
-  key: string;
-  type: string;
-  position: number;
-  image: string;
-  href: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-  ctaLabel: string;
-  items: SectionItem[];
-};
-
-export type ResolvedPage = {
-  key: string;
-  label: string;
-  title: string;
-  subtitle: string;
-  seoTitle: string;
-  seoDescription: string;
-  sections: ResolvedSection[];
-};
 
 export type SectionTranslation = {
   locale: Locale;
@@ -72,8 +47,6 @@ export type PageTranslationEntry = {
   locale: Locale;
   title: string;
   subtitle: string;
-  seoTitle: string;
-  seoDescription: string;
 };
 
 export type AdminPage = {
@@ -122,47 +95,6 @@ const pageInclude = {
   },
 } as const;
 
-/** Resolved content for one locale, with dictionary-style fallbacks. */
-export async function getPage(
-  key: string,
-  locale: Locale = defaultLocale,
-): Promise<ResolvedPage | null> {
-  const page = await prisma.page.findUnique({
-    where: { key },
-    include: pageInclude,
-  });
-
-  if (!page) return null;
-
-  const translation = pickTranslation(page.translations, locale);
-
-  return {
-    key: page.key,
-    label: page.label,
-    title: translation?.title ?? "",
-    subtitle: translation?.subtitle ?? "",
-    seoTitle: translation?.seoTitle ?? "",
-    seoDescription: translation?.seoDescription ?? "",
-    sections: page.sections.map((section) => {
-      const text = pickTranslation(section.translations, locale);
-
-      return {
-        id: section.id,
-        key: section.key,
-        type: section.type,
-        position: section.position,
-        image: section.image,
-        href: section.href,
-        eyebrow: text?.eyebrow ?? "",
-        title: text?.title ?? "",
-        body: text?.body ?? "",
-        ctaLabel: text?.ctaLabel ?? "",
-        items: toItems(text?.items),
-      };
-    }),
-  };
-}
-
 /** Every language of a page, for the admin editor. */
 export async function getPageForAdmin(
   key: string,
@@ -183,8 +115,6 @@ export async function getPageForAdmin(
         locale: entry.locale as Locale,
         title: entry.title,
         subtitle: entry.subtitle,
-        seoTitle: entry.seoTitle,
-        seoDescription: entry.seoDescription,
       })),
     sections: page.sections.map((section) => ({
       id: section.id,
@@ -314,8 +244,6 @@ export function parsePagePayload(
         locale: locale as Locale,
         title: toStringValue(value.title).trim(),
         subtitle: toStringValue(value.subtitle).trim(),
-        seoTitle: toStringValue(value.seoTitle).trim(),
-        seoDescription: toStringValue(value.seoDescription).trim(),
       });
     }
   }
