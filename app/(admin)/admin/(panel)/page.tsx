@@ -122,7 +122,7 @@ export default async function AdminOverviewPage() {
           </div>
 
           <dl className="divide-y divide-line-soft">
-            {["SUBMITTED", "PROCESSING", "COMPLETED", "CANCELLED", "DRAFT"].map(
+            {["SUBMITTED", "PROCESSING", "SHIPPED", "COMPLETED", "CANCELLED", "DRAFT"].map(
               (status) => (
                 <div
                   key={status}

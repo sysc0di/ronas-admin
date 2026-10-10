@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 
 import { OrderStatus } from "@/lib/generated/prisma/enums";
 import type { Prisma } from "@/lib/generated/prisma/client";
@@ -24,6 +24,7 @@ export const contactFields = [
 
 export const adminStatuses = [
   OrderStatus.PROCESSING,
+  OrderStatus.SHIPPED,
   OrderStatus.COMPLETED,
   OrderStatus.CANCELLED,
   OrderStatus.SUBMITTED,
@@ -81,6 +82,34 @@ export function listJson(data: unknown, init?: ResponseInit) {
 
 export function createToken() {
   return randomUUID();
+}
+
+/** No 0/O/1/I, so a code typed from the email is never ambiguous. */
+const TRACKING_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+export function createTrackingCode(): string {
+  let code = "";
+
+  for (let index = 0; index < 8; index += 1) {
+    code += TRACKING_ALPHABET[randomInt(TRACKING_ALPHABET.length)];
+  }
+
+  return `RC-${code}`;
+}
+
+/** The public order number must be unique; 10 tries cover any collision. */
+export async function createUniqueTrackingCode(): Promise<string> {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const code = createTrackingCode();
+    const existing = await prisma.order.findUnique({
+      where: { trackingCode: code },
+      select: { id: true },
+    });
+
+    if (!existing) return code;
+  }
+
+  return createTrackingCode();
 }
 
 export function serializeOrder(order: Prisma.OrderGetPayload<{ include: typeof orderInclude }>) {
@@ -144,6 +173,7 @@ export function serializeOrder(order: Prisma.OrderGetPayload<{ include: typeof o
 
   return {
     id: order.id,
+    trackingCode: order.trackingCode,
     email: order.email,
     phone: order.phone,
     firstName: order.firstName,
@@ -155,6 +185,7 @@ export function serializeOrder(order: Prisma.OrderGetPayload<{ include: typeof o
     discount,
     total,
     submittedAt: order.submittedAt,
+    shippedAt: order.shippedAt,
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     itemCount: items.reduce((count, item) => count + item.quantity, 0),

@@ -1,4 +1,5 @@
 import { authenticateAdmin } from "@/lib/admin-session";
+import { notifyOrderShipped } from "@/lib/notify-store";
 import { OrderStatus } from "@/lib/generated/prisma/enums";
 import {
   adminOnly,
@@ -52,7 +53,7 @@ export async function PATCH(
 
   const order = await prisma.order.findUnique({
     where: { id },
-    select: { id: true, submittedAt: true },
+    select: { id: true, status: true, submittedAt: true },
   });
 
   if (!order) {
@@ -89,6 +90,13 @@ export async function PATCH(
     if (body.status === OrderStatus.SUBMITTED && !order.submittedAt) {
       update.submittedAt = new Date();
     }
+
+    if (
+      body.status === OrderStatus.SHIPPED &&
+      order.status !== OrderStatus.SHIPPED
+    ) {
+      update.shippedAt = new Date();
+    }
   }
 
   if (body.email !== undefined || body.notes !== undefined) {
@@ -108,6 +116,16 @@ export async function PATCH(
     data: update,
     include: orderInclude,
   });
+
+  /* First time an order becomes shipped: tell the storefront so it can email
+     the customer. The call is fire-and-forget; failures are logged in the
+     notify helper and the endpoint stays idempotent. */
+  if (
+    updated.status === OrderStatus.SHIPPED &&
+    order.status !== OrderStatus.SHIPPED
+  ) {
+    void notifyOrderShipped(updated.id);
+  }
 
   return listJson({ order: serializeOrder(updated) });
 }

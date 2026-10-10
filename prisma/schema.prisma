@@ -17,6 +17,7 @@ enum OrderStatus {
   DRAFT
   SUBMITTED
   PROCESSING
+  SHIPPED
   COMPLETED
   CANCELLED
 }
@@ -175,6 +176,9 @@ model PageSectionTranslation {
 model Order {
   id                     String      @id @default(uuid())
   token                  String      @unique
+  /// Human-friendly public order number ("RC-XXXXXXXX") used for tracking and
+  /// in the order emails.
+  trackingCode           String      @unique
   email                  String?
   phone                  String?
   firstName              String?
@@ -182,6 +186,11 @@ model Order {
   notes                  String?
   status                 OrderStatus @default(DRAFT)
   submittedAt            DateTime?
+  /// When the order was marked as shipped in the admin panel.
+  shippedAt              DateTime?
+  /// When the shipped-notification email was sent, so a retried notify call
+  /// never produces a second "on its way" email for the same order.
+  shippedEmailSentAt     DateTime?
   /// Currency the customer checked out in. Order totals are shown in it.
   currency               String      @default("TRY")
   /// Locale the customer checked out in (en | tr | ku | ar).

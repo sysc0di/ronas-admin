@@ -142,7 +142,7 @@ export function StatusBadge({ status }: { status: string }) {
   const tone =
     status === "COMPLETED"
       ? "ok"
-      : status === "PROCESSING"
+      : status === "PROCESSING" || status === "SHIPPED"
         ? "warn"
         : status === "CANCELLED"
           ? "danger"

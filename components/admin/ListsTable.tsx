@@ -54,7 +54,7 @@ type Order = {
   firstName: string | null;
   lastName: string | null;
   notes: string | null;
-  status: "DRAFT" | "SUBMITTED" | "PROCESSING" | "COMPLETED" | "CANCELLED";
+  status: "DRAFT" | "SUBMITTED" | "PROCESSING" | "SHIPPED" | "COMPLETED" | "CANCELLED";
   currency: "USD" | "TRY";
   subtotal: number;
   discount: number;
@@ -74,6 +74,7 @@ function formatStatusLabel(status: string) {
 const STATUS_OPTIONS = [
   "SUBMITTED",
   "PROCESSING",
+  "SHIPPED",
   "COMPLETED",
   "CANCELLED",
 ] as const;

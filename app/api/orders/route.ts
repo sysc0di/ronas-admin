@@ -4,6 +4,7 @@ import {
   adminOnly,
   buildItemSnapshots,
   createToken,
+  createUniqueTrackingCode,
   findUnavailableProducts,
   listJson,
   loadProductPricing,
@@ -99,12 +100,14 @@ export async function POST(request: Request) {
     items.map((item) => item.productId),
   );
   const snapshots = buildItemSnapshots(items, products);
+  const trackingCode = await createUniqueTrackingCode();
 
   try {
     const order = await prisma.order.create({
       data: {
         ...contact,
         token: createToken(),
+        trackingCode,
         status: OrderStatus.SUBMITTED,
         submittedAt: new Date(),
         items: {
