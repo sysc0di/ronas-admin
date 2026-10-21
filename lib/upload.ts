@@ -14,6 +14,9 @@ export const DEFAULT_UPLOAD_FOLDER: UploadFolder = "content";
 /** Comfortably above the weight of a product photo taken on a phone. */
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
+/** How many extra images one product may carry on top of its main image. */
+export const MAX_GALLERY_IMAGES = 12;
+
 export const IMAGE_MIME_TYPES = [
   "image/jpeg",
   "image/png",
@@ -55,4 +58,49 @@ export function resolveFolder(value: FormDataEntryValue | null): UploadFolder {
     (UPLOAD_FOLDERS as readonly string[]).includes(value)
     ? (value as UploadFolder)
     : DEFAULT_UPLOAD_FOLDER;
+}
+
+/**
+ * Sends one file to the upload endpoint and hands back the stored image.
+ *
+ * Lives here so every uploader in the panel (the single image field, the
+ * product gallery) posts files the same way and reports the same errors.
+ */
+export async function uploadImageFile(
+  file: File,
+  folder: UploadFolder = DEFAULT_UPLOAD_FOLDER,
+): Promise<{ ok: true; image: UploadedImage } | { ok: false; error: string }> {
+  /* Check before the transfer: the API enforces the same rules, but failing
+     locally saves a pointless multi megabyte round trip. */
+  const invalid = validateImage(file);
+
+  if (invalid) return { ok: false, error: invalid };
+
+  const body = new FormData();
+
+  body.set("file", file);
+  body.set("folder", folder);
+
+  try {
+    const response = await fetch("/api/uploads", { method: "POST", body });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        error:
+          Array.isArray(payload.errors) && payload.errors.length > 0
+            ? payload.errors.join(" ")
+            : "Upload failed.",
+      };
+    }
+
+    const image = payload.image as UploadedImage | undefined;
+
+    if (!image?.url) return { ok: false, error: "Upload failed." };
+
+    return { ok: true, image };
+  } catch {
+    return { ok: false, error: "Could not reach the upload endpoint." };
+  }
 }

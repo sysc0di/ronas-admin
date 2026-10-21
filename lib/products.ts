@@ -6,6 +6,7 @@ import {
   MAX_TECHNICAL_DETAIL_LENGTH,
   type ProductSpec,
 } from "@/lib/product-specs";
+import { MAX_GALLERY_IMAGES } from "@/lib/upload";
 
 /* A stock code is the product identifier and URL key: letters (any case),
    digits, dots, underscores and dashes, starting with a letter or digit. */
@@ -40,6 +41,8 @@ export type ProductTranslationPayload = {
 export type ProductPayload = {
   id?: string;
   visible?: boolean;
+  /** Extra images shown next to the main one; absent leaves them alone. */
+  gallery?: string[];
   translations?: ProductTranslationPayload[];
   priceUsd?: number | null;
   discountedPriceUsd?: number | null;
@@ -61,6 +64,7 @@ export const productSelect = {
   family: true,
   category: true,
   image: true,
+  gallery: true,
   priceUsd: true,
   discountedPriceUsd: true,
   discountPercentUsd: true,
@@ -268,6 +272,53 @@ type NumberResult =
   | { ok: true; value: number | null | undefined }
   | { ok: false; error: string };
 
+type GalleryResult =
+  | { ok: true; value: string[] | undefined }
+  | { ok: false; error: string };
+
+/**
+ * The gallery is a list of image URLs, so the payload is checked here rather
+ * than by Prisma: every entry must be a non-empty string, and the list is
+ * capped so a product cannot grow an endless set of images.
+ */
+function readGallery(body: Record<string, unknown>): GalleryResult {
+  const value = body.gallery;
+
+  /* Omitted means the caller is not touching the stored gallery. */
+  if (value === undefined || value === null) {
+    return { ok: true, value: undefined };
+  }
+
+  if (!Array.isArray(value)) {
+    return {
+      ok: false,
+      error: '"gallery" must be an array of image URLs.',
+    };
+  }
+
+  if (value.length > MAX_GALLERY_IMAGES) {
+    return {
+      ok: false,
+      error: `"gallery" must contain at most ${MAX_GALLERY_IMAGES} images.`,
+    };
+  }
+
+  const urls: string[] = [];
+
+  for (const entry of value) {
+    if (typeof entry !== "string" || entry.trim().length === 0) {
+      return {
+        ok: false,
+        error: 'Every gallery entry must be a non-empty image URL.',
+      };
+    }
+
+    urls.push(entry.trim());
+  }
+
+  return { ok: true, value: urls };
+}
+
 function readMoney(
   body: Record<string, unknown>,
   field: string,
@@ -394,6 +445,14 @@ export function parseProductPayload(
     errors.push(translations.error);
   } else if (translations.value !== undefined) {
     data.translations = translations.value;
+  }
+
+  const gallery = readGallery(body);
+
+  if (!gallery.ok) {
+    errors.push(gallery.error);
+  } else if (gallery.value !== undefined) {
+    data.gallery = gallery.value;
   }
 
   const priceUsd = readMoney(body, "priceUsd");

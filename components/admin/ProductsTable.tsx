@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
+import { GalleryInput } from "@/components/admin/GalleryInput";
 import { ImageInput } from "@/components/admin/ImageInput";
 import {
   Alert,
@@ -73,6 +74,7 @@ type Product = {
   family: string;
   category: string;
   image: string | null;
+  gallery: string[];
   priceUsd: number | null;
   discountedPriceUsd: number | null;
   discountPercentUsd: number | null;
@@ -100,6 +102,7 @@ type Draft = {
   family: string;
   category: string;
   image: string;
+  gallery: string[];
   pricing: Record<Currency, DraftMoney>;
   visible: boolean;
   language: Locale;
@@ -203,6 +206,7 @@ function emptyDraft(): Draft {
     family: DEFAULT_FAMILY,
     category: SUBCATEGORIES[DEFAULT_FAMILY][0].slug,
     image: "",
+    gallery: [],
     pricing: {
       USD: { price: "", discountedPrice: "", discountPercent: "" },
       TRY: { price: "", discountedPrice: "", discountPercent: "" },
@@ -236,6 +240,7 @@ function draftFromProduct(product: Product): Draft {
       familyOf(product.category) ?? product.family ?? DEFAULT_FAMILY,
     category: product.category,
     image: product.image ?? "",
+    gallery: product.gallery ?? [],
     pricing: {
       USD: moneyToDraft(
         product.priceUsd,
@@ -629,6 +634,7 @@ export function ProductsTable({
       family: draft.family,
       category: draft.category,
       image: draft.image,
+      gallery: draft.gallery,
       priceUsd: usd.price,
       discountedPriceUsd: usd.discountedPrice,
       discountPercentUsd: usd.discountPercent,
@@ -1084,6 +1090,14 @@ export function ProductsTable({
             required
             value={draft.image}
             onChange={(url) => setDraft({ ...draft, image: url })}
+            folder="products"
+          />
+
+          <GalleryInput
+            label="Gallery images"
+            hint="Extra angles of the product. The main image above stays the one shown first."
+            value={draft.gallery}
+            onChange={(gallery) => setDraft({ ...draft, gallery })}
             folder="products"
           />
 

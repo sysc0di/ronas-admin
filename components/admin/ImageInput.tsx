@@ -8,9 +8,8 @@ import {
   DEFAULT_UPLOAD_FOLDER,
   IMAGE_MIME_TYPES,
   MAX_IMAGE_BYTES,
-  validateImage,
+  uploadImageFile,
   type UploadFolder,
-  type UploadedImage,
 } from "@/lib/upload";
 
 /**
@@ -46,48 +45,19 @@ export function ImageInput({
   const [error, setError] = useState("");
 
   async function send(file: File) {
-    /* Check before the transfer: the API enforces the same rules, but failing
-       locally saves a pointless multi megabyte round trip. */
-    const invalid = validateImage(file);
-
-    if (invalid) {
-      setError(invalid);
-      return;
-    }
-
     setUploading(true);
     setError("");
 
-    const body = new FormData();
-    body.set("file", file);
-    body.set("folder", folder);
+    const result = await uploadImageFile(file, folder);
 
-    try {
-      const response = await fetch("/api/uploads", { method: "POST", body });
-      const payload = await response.json().catch(() => ({}));
+    setUploading(false);
 
-      if (!response.ok) {
-        setError(
-          Array.isArray(payload.errors) && payload.errors.length > 0
-            ? payload.errors.join(" ")
-            : "Upload failed.",
-        );
-        return;
-      }
-
-      const image = payload.image as UploadedImage | undefined;
-
-      if (!image?.url) {
-        setError("Upload failed.");
-        return;
-      }
-
-      onChange(image.url);
-    } catch {
-      setError("Could not reach the upload endpoint.");
-    } finally {
-      setUploading(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
     }
+
+    onChange(result.image.url);
   }
 
   /* The picker is the only way in, so reset it after every pick — otherwise

@@ -75,6 +75,7 @@ export async function POST(request: Request) {
       family: data.family as string,
       category: data.category as string,
       image: data.image as string,
+      gallery: data.gallery ?? [],
       priceUsd: data.priceUsd ?? null,
       discountedPriceUsd: data.discountedPriceUsd ?? null,
       discountPercentUsd: data.discountPercentUsd ?? null,

@@ -38,6 +38,9 @@ model Product {
   family             String
   category           String
   image              String
+  /// Extra images shown as a gallery on the product detail page, after
+  /// `image`. Stored as delivery URLs, like `image` itself.
+  gallery            String[] @default([])
   /// Legacy attributes, superseded by `ProductTranslation.technicalDetails`.
   /// Kept nullable (and unused) so existing values are not destroyed; new
   /// products leave them empty.

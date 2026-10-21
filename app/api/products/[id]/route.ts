@@ -63,7 +63,7 @@ export async function PATCH(
 
   if (!data) return badRequest(errors);
 
-  const { id: nextId, translations, ...fields } = data;
+  const { id: nextId, translations, gallery, ...fields } = data;
 
   if (nextId && nextId !== id) {
     const taken = await prisma.product.findUnique({
@@ -82,6 +82,11 @@ export async function PATCH(
   const update: Prisma.ProductUpdateInput = {
     ...(fields as Omit<Prisma.ProductUpdateInput, "translations">),
   };
+
+  /* An omitted gallery keeps the stored images; an empty one clears them. */
+  if (gallery !== undefined) {
+    update.gallery = gallery;
+  }
 
   if (nextId && nextId !== id) {
     update.id = nextId;
