@@ -1,6 +1,14 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, ImageUp, Link2, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ImageUp,
+  Link2,
+  Plus,
+  Trash2,
+  Video,
+} from "lucide-react";
 import { useRef, useState } from "react";
 
 import { Button, IconButton, Input } from "@/components/admin/ui";
@@ -8,16 +16,20 @@ import {
   DEFAULT_UPLOAD_FOLDER,
   IMAGE_MIME_TYPES,
   MAX_GALLERY_IMAGES,
-  uploadImageFile,
+  uploadMediaFile,
+  VIDEO_HOST,
+  VIDEO_MIME_TYPES,
+  isVideoUrl,
   type UploadFolder,
 } from "@/lib/upload";
 
 /**
- * Editor for the extra images of a product.
+ * Editor for the extra media of a product.
  *
  * The main image stays in its own field; this one holds the gallery that is
  * shown next to it on the product detail page. The value is a plain list of
- * URLs, so nothing downstream has to know how the images were added.
+ * URLs — images and videos mixed — so nothing downstream has to know how the
+ * files were added.
  */
 export function GalleryInput({
   label = "Gallery",
@@ -43,7 +55,7 @@ export function GalleryInput({
   async function send(file: File) {
     if (full) {
       setError(
-        `A product can hold at most ${MAX_GALLERY_IMAGES} gallery images.`,
+        `A product can hold at most ${MAX_GALLERY_IMAGES} gallery items.`,
       );
 
       return;
@@ -52,7 +64,7 @@ export function GalleryInput({
     setUploading(true);
     setError("");
 
-    const result = await uploadImageFile(file, folder);
+    const result = await uploadMediaFile(file, folder);
 
     setUploading(false);
 
@@ -61,7 +73,7 @@ export function GalleryInput({
       return;
     }
 
-    onChange([...value, result.image.url]);
+    onChange([...value, result.url]);
   }
 
   function addPasted() {
@@ -71,7 +83,17 @@ export function GalleryInput({
 
     if (full) {
       setError(
-        `A product can hold at most ${MAX_GALLERY_IMAGES} gallery images.`,
+        `A product can hold at most ${MAX_GALLERY_IMAGES} gallery items.`,
+      );
+
+      return;
+    }
+
+    /* A hosted player cannot be played from a gallery tile, so the link has
+       to point at the video file itself. */
+    if (VIDEO_HOST.test(url)) {
+      setError(
+        "Paste a direct link to the video file (.mp4 or .webm), not a YouTube or Vimeo page.",
       );
 
       return;
@@ -107,17 +129,29 @@ export function GalleryInput({
               className="group relative overflow-hidden rounded-md border border-line bg-panel"
             >
               <div className="aspect-square w-full">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={url}
-                  alt=""
-                  className="size-full object-cover"
-                />
+                {isVideoUrl(url) ? (
+                  <div className="grid size-full place-items-center bg-sunken">
+                    <span className="flex flex-col items-center gap-1 text-subtle">
+                      <Video className="size-5" aria-hidden="true" />
+
+                      <span className="text-[10px] tracking-widest">
+                        VIDEO
+                      </span>
+                    </span>
+                  </div>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={url}
+                    alt=""
+                    className="size-full object-cover"
+                  />
+                )}
               </div>
 
               <div className="flex items-center justify-between gap-1 border-t border-line px-1 py-1">
                 <IconButton
-                  label="Move gallery image left"
+                  label="Move gallery item left"
                   disabled={index === 0}
                   onClick={() => move(index, -1)}
                 >
@@ -129,7 +163,7 @@ export function GalleryInput({
                 </span>
 
                 <IconButton
-                  label="Move gallery image right"
+                  label="Move gallery item right"
                   disabled={index === value.length - 1}
                   onClick={() => move(index, 1)}
                 >
@@ -137,7 +171,7 @@ export function GalleryInput({
                 </IconButton>
 
                 <IconButton
-                  label="Remove gallery image"
+                  label="Remove gallery item"
                   onClick={() =>
                     onChange(value.filter((_, row) => row !== index))
                   }
@@ -187,12 +221,12 @@ export function GalleryInput({
 
         <div className="min-w-0 flex-1">
           <p className="cell-strong truncate text-sm">
-            {uploading ? "Uploading…" : "Drop images here"}
+            {uploading ? "Uploading…" : "Drop images or videos here"}
           </p>
 
           <p className="cell-muted text-xs">
-            {value.length}/{MAX_GALLERY_IMAGES} images · JPEG, PNG, WebP,
-            AVIF or GIF
+            {value.length}/{MAX_GALLERY_IMAGES} items · JPEG, PNG, WebP, AVIF,
+            GIF or MP4, WebM, MOV
           </p>
         </div>
 
@@ -203,13 +237,13 @@ export function GalleryInput({
           onClick={() => pickerRef.current?.click()}
         >
           <Plus className="size-4" aria-hidden="true" />
-          Add image
+          Add media
         </Button>
 
         <input
           ref={pickerRef}
           type="file"
-          accept={IMAGE_MIME_TYPES.join(",")}
+          accept={[...IMAGE_MIME_TYPES, ...VIDEO_MIME_TYPES].join(",")}
           onChange={(event) => {
             const file = event.target.files?.[0];
 
@@ -225,7 +259,7 @@ export function GalleryInput({
 
       <div className="mt-2 flex items-end gap-2">
         <Input
-          label="…or paste an image URL"
+          label="…or paste an image or video URL"
           value={pasted}
           placeholder="https://…"
           onChange={(event) => setPasted(event.target.value)}

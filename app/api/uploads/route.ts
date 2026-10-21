@@ -3,17 +3,25 @@ import {
   isCloudinaryConfigured,
   uploadErrorMessage,
   uploadImage,
+  uploadVideo,
 } from "@/lib/cloudinary";
 import { badRequest } from "@/lib/products";
-import { resolveFolder, validateImage } from "@/lib/upload";
+import {
+  resolveFolder,
+  validateMedia,
+  VIDEO_MIME_TYPES,
+} from "@/lib/upload";
 
 export const runtime = "nodejs";
 
 /**
- * Single entry point for every admin image upload. The browser posts the file
- * as multipart form data and gets back the generated Cloudinary link, which the
+ * Single entry point for every admin upload. The browser posts the file as
+ * multipart form data and gets back the generated Cloudinary link, which the
  * forms then store as a plain URL — the same column a hand pasted link used to
  * fill, so nothing downstream needs to know uploads exist.
+ *
+ * Images and videos take different Cloudinary resource types, so the file type
+ * decides which one is used.
  */
 export async function POST(request: Request) {
   if (!(await authenticateAdmin(request))) return unauthorized();
@@ -22,7 +30,7 @@ export async function POST(request: Request) {
     return Response.json(
       {
         errors: [
-          "Image uploads are not configured. Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET to your .env file.",
+          "Uploads are not configured. Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET to your .env file.",
         ],
       },
       { status: 503 },
@@ -43,12 +51,20 @@ export async function POST(request: Request) {
     return badRequest(['"file" is required.']);
   }
 
-  const invalid = validateImage(file);
+  const invalid = validateMedia(file);
 
   if (invalid) return badRequest([invalid]);
 
+  const folder = resolveFolder(body.get("folder"));
+
   try {
-    const image = await uploadImage(file, resolveFolder(body.get("folder")));
+    if ((VIDEO_MIME_TYPES as readonly string[]).includes(file.type)) {
+      const video = await uploadVideo(file, folder);
+
+      return Response.json({ video }, { status: 201 });
+    }
+
+    const image = await uploadImage(file, folder);
 
     return Response.json({ image }, { status: 201 });
   } catch (error) {

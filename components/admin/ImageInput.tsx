@@ -57,7 +57,7 @@ export function ImageInput({
       return;
     }
 
-    onChange(result.image.url);
+    onChange(result.url);
   }
 
   /* The picker is the only way in, so reset it after every pick — otherwise

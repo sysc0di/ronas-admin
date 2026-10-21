@@ -3,6 +3,7 @@ import { v2 as cloudinary } from "cloudinary";
 import {
   DEFAULT_UPLOAD_FOLDER,
   type UploadedImage,
+  type UploadedVideo,
   type UploadFolder,
 } from "@/lib/upload";
 
@@ -59,25 +60,33 @@ function configure() {
   configured = true;
 }
 
-export async function uploadImage(
+/**
+ * Uploads a file to Cloudinary.
+ *
+ * `resource_type` decides whether the asset is stored as an image or as a
+ * video, which changes the delivery URL (and the format the browser plays).
+ */
+async function upload(
   file: File,
-  folder: UploadFolder = DEFAULT_UPLOAD_FOLDER,
-): Promise<UploadedImage> {
+  folder: UploadFolder,
+  resourceType: "image" | "video",
+): Promise<{
+  secure_url: string;
+  public_id: string;
+  width?: number;
+  height?: number;
+  bytes?: number;
+  format?: string;
+  duration?: number;
+}> {
   configure();
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  const result = await new Promise<{
-    secure_url: string;
-    public_id: string;
-    width?: number;
-    height?: number;
-    bytes?: number;
-    format?: string;
-  }>((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
-        resource_type: "image",
+        resource_type: resourceType,
         folder: `ronas-admin/${folder}`,
         /* `overwrite: false` makes Cloudinary de-duplicate by public id, so
            re-uploading the same bytes reuses the asset instead of piling up
@@ -103,14 +112,36 @@ export async function uploadImage(
 
     stream.end(buffer);
   });
+}
+
+export async function uploadImage(
+  file: File,
+  folder: UploadFolder = DEFAULT_UPLOAD_FOLDER,
+): Promise<UploadedImage> {
+  const result = await upload(file, folder, "image");
 
   return {
     url: result.secure_url,
     publicId: result.public_id,
     width: result.width ?? 0,
     height: result.height ?? 0,
-    bytes: result.bytes ?? buffer.byteLength,
+    bytes: result.bytes ?? 0,
     format: result.format ?? "",
+  };
+}
+
+export async function uploadVideo(
+  file: File,
+  folder: UploadFolder = DEFAULT_UPLOAD_FOLDER,
+): Promise<UploadedVideo> {
+  const result = await upload(file, folder, "video");
+
+  return {
+    url: result.secure_url,
+    publicId: result.public_id,
+    bytes: result.bytes ?? 0,
+    format: result.format ?? "",
+    duration: result.duration,
   };
 }
 

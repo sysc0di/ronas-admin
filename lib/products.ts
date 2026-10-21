@@ -309,7 +309,7 @@ function readGallery(body: Record<string, unknown>): GalleryResult {
     if (typeof entry !== "string" || entry.trim().length === 0) {
       return {
         ok: false,
-        error: 'Every gallery entry must be a non-empty image URL.',
+        error: 'Every gallery entry must be a non-empty image or video URL.',
       };
     }
 
